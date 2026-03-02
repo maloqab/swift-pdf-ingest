@@ -1,0 +1,12 @@
+{
+  "filing_q4_2025.pdf": {
+    "source_url": "https://example.com/filings/filing_q4_2025.pdf",
+    "source_label": "public-filings",
+    "document_title": "Q4 2025 Filing"
+  },
+  "contract_master_service.pdf": {
+    "source_url": "https://example.com/contracts/master-service.pdf",
+    "source_label": "legal-documents",
+    "document_title": "Master Service Agreement"
+  }
+}
