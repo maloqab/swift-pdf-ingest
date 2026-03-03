@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SwiftIngestCurrentItem: Codable, Equatable, Sendable {
+public struct IngestCurrentItem: Codable, Equatable, Sendable {
     public let filePath: String
     public let fileSHA256: String
     public let status: String
@@ -42,19 +42,19 @@ public struct SwiftIngestCurrentItem: Codable, Equatable, Sendable {
     }
 }
 
-public struct SwiftIngestRuntimeState: Codable, Equatable, Sendable {
+public struct IngestState: Codable, Equatable, Sendable {
     public let generatedAt: String
     public let processedCount: Int
     public let failedCount: Int
     public let chunkCount: Int
-    public let currentItem: SwiftIngestCurrentItem?
+    public let currentItem: IngestCurrentItem?
 
     public init(
         generatedAt: String,
         processedCount: Int,
         failedCount: Int,
         chunkCount: Int,
-        currentItem: SwiftIngestCurrentItem?
+        currentItem: IngestCurrentItem?
     ) {
         self.generatedAt = generatedAt
         self.processedCount = processedCount
@@ -63,8 +63,8 @@ public struct SwiftIngestRuntimeState: Codable, Equatable, Sendable {
         self.currentItem = currentItem
     }
 
-    public static func empty(generatedAt: String) -> SwiftIngestRuntimeState {
-        SwiftIngestRuntimeState(
+    public static func empty(generatedAt: String) -> IngestState {
+        IngestState(
             generatedAt: generatedAt,
             processedCount: 0,
             failedCount: 0,
@@ -97,18 +97,18 @@ public struct SwiftIngestRuntimeState: Codable, Equatable, Sendable {
     }
 }
 
-public enum SwiftIngestRuntimeStateStore {
-    public static func read(from url: URL) throws -> SwiftIngestRuntimeState {
+public enum IngestStateStore {
+    public static func read(from url: URL) throws -> IngestState {
         guard FileManager.default.fileExists(atPath: url.path) else {
             return .empty(generatedAt: timestampNowUTC())
         }
 
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
-        return try decoder.decode(SwiftIngestRuntimeState.self, from: data)
+        return try decoder.decode(IngestState.self, from: data)
     }
 
-    public static func write(_ state: SwiftIngestRuntimeState, to url: URL) throws {
+    public static func write(_ state: IngestState, to url: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(state)
@@ -145,5 +145,5 @@ public enum SwiftIngestRuntimeStateStore {
 }
 
 private func timestampNowUTC() -> String {
-    SwiftIngestRuntimeStateStore.timestampNowUTC()
+    IngestStateStore.timestampNowUTC()
 }

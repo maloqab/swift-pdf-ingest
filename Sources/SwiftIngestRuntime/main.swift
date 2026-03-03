@@ -212,7 +212,7 @@ private func main() -> RuntimeExitCode {
             defaultModelVersion: config.embeddingModelVersion
         )
 
-        var state = try SwiftIngestRuntimeStateStore.read(from: config.stateFile)
+        var state = try IngestStateStore.read(from: config.stateFile)
         var seenSignatures = try loadSeenSignatures(from: config.seenFile)
         let candidates = try discoverPDFs(in: config.inboxDir)
 
@@ -230,29 +230,29 @@ private func main() -> RuntimeExitCode {
                Date().timeIntervalSince(startedAt) >= TimeInterval(timeoutSeconds) {
                 break
             }
-            var current = SwiftIngestCurrentItem(
+            var current = IngestCurrentItem(
                 filePath: item.url.path,
                 fileSHA256: item.sha256,
                 status: "in_progress",
-                startedAt: SwiftIngestRuntimeStateStore.timestampNowUTC(),
+                startedAt: IngestStateStore.timestampNowUTC(),
                 finishedAt: nil,
                 pageCount: 0,
                 chunkCount: 0,
                 errorMessage: nil
             )
-            state = SwiftIngestRuntimeState(
-                generatedAt: SwiftIngestRuntimeStateStore.timestampNowUTC(),
+            state = IngestState(
+                generatedAt: IngestStateStore.timestampNowUTC(),
                 processedCount: state.processedCount,
                 failedCount: state.failedCount,
                 chunkCount: state.chunkCount,
                 currentItem: current
             )
-            try SwiftIngestRuntimeStateStore.write(state, to: config.stateFile)
+            try IngestStateStore.write(state, to: config.stateFile)
 
             do {
                 let processResult = try processPDF(url: item.url, enableOCRFallback: config.enableOCRFallback, languages: config.languages)
                 pageFailuresDelta += processResult.failedPages.count
-                if let failedPagesEntry = SwiftIngestRuntimeDecisions.failedPagesSummaryEntry(
+                if let failedPagesEntry = IngestDecisions.failedPagesSummaryEntry(
                     filename: item.url.lastPathComponent,
                     failedPages: processResult.failedPages
                 ) {
@@ -313,18 +313,18 @@ private func main() -> RuntimeExitCode {
 
                 processedDelta += 1
                 chunksDelta += processResult.chunkCount
-                current = SwiftIngestCurrentItem(
+                current = IngestCurrentItem(
                     filePath: item.url.path,
                     fileSHA256: item.sha256,
                     status: "processed",
                     startedAt: current.startedAt,
-                    finishedAt: SwiftIngestRuntimeStateStore.timestampNowUTC(),
+                    finishedAt: IngestStateStore.timestampNowUTC(),
                     pageCount: processResult.pageCount,
                     chunkCount: processResult.chunkCount,
                     errorMessage: nil
                 )
-                state = SwiftIngestRuntimeState(
-                    generatedAt: SwiftIngestRuntimeStateStore.timestampNowUTC(),
+                state = IngestState(
+                    generatedAt: IngestStateStore.timestampNowUTC(),
                     processedCount: state.processedCount + 1,
                     failedCount: state.failedCount,
                     chunkCount: state.chunkCount + processResult.chunkCount,
@@ -337,7 +337,7 @@ private func main() -> RuntimeExitCode {
                 if case let DocumentProcessingError.allPagesFailed(_, failedPages) = error {
                     failedPagesForDocument = failedPages
                     pageFailuresDelta += failedPages.count
-                    if let failedPagesEntry = SwiftIngestRuntimeDecisions.failedPagesSummaryEntry(
+                    if let failedPagesEntry = IngestDecisions.failedPagesSummaryEntry(
                         filename: item.url.lastPathComponent,
                         failedPages: failedPages
                     ) {
@@ -353,18 +353,18 @@ private func main() -> RuntimeExitCode {
                     errorMessage = "\(baseErrorMessage) failed_pages=\(failedPagesForDocument.count)"
                 }
 
-                current = SwiftIngestCurrentItem(
+                current = IngestCurrentItem(
                     filePath: item.url.path,
                     fileSHA256: item.sha256,
                     status: "failed",
                     startedAt: current.startedAt,
-                    finishedAt: SwiftIngestRuntimeStateStore.timestampNowUTC(),
+                    finishedAt: IngestStateStore.timestampNowUTC(),
                     pageCount: 0,
                     chunkCount: 0,
                     errorMessage: errorMessage
                 )
-                state = SwiftIngestRuntimeState(
-                    generatedAt: SwiftIngestRuntimeStateStore.timestampNowUTC(),
+                state = IngestState(
+                    generatedAt: IngestStateStore.timestampNowUTC(),
                     processedCount: state.processedCount,
                     failedCount: state.failedCount + 1,
                     chunkCount: state.chunkCount,
@@ -372,22 +372,22 @@ private func main() -> RuntimeExitCode {
                 )
             }
 
-            if SwiftIngestRuntimeDecisions.shouldAppendSeenSignature(forStatus: current.status) {
+            if IngestDecisions.shouldAppendSeenSignature(forStatus: current.status) {
                 seenSignatures.insert(item.signature)
                 try appendSeenSignature(item.signature, to: config.seenFile)
             }
-            try SwiftIngestRuntimeStateStore.write(state, to: config.stateFile)
+            try IngestStateStore.write(state, to: config.stateFile)
         }
 
         if pending.isEmpty {
-            state = SwiftIngestRuntimeState(
-                generatedAt: SwiftIngestRuntimeStateStore.timestampNowUTC(),
+            state = IngestState(
+                generatedAt: IngestStateStore.timestampNowUTC(),
                 processedCount: state.processedCount,
                 failedCount: state.failedCount,
                 chunkCount: state.chunkCount,
                 currentItem: state.currentItem
             )
-            try SwiftIngestRuntimeStateStore.write(state, to: config.stateFile)
+            try IngestStateStore.write(state, to: config.stateFile)
         }
 
         let currentStatus = state.currentItem?.status ?? "none"

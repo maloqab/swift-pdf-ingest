@@ -1,6 +1,6 @@
 import Foundation
 
-public enum SwiftIngestRuntimeDecisions {
+public enum IngestDecisions {
     public static func shouldAppendSeenSignature(forStatus status: String) -> Bool {
         status == "processed"
     }
