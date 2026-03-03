@@ -597,7 +597,7 @@ private func processTextLayerOnly(page: PDFPagePayload) throws -> OCRWorkerResul
         didHighDpiRetry: false,
         didTargetedNumericSecondPass: false,
         numericReasonCodes: report.reasonCodes,
-        sourceUnit: NumericSanity.detectSourceUnit(in: repairedText).rawValue
+        sourceUnit: nil
     )
 }
 

@@ -172,7 +172,7 @@ public final class OCRWorker {
                 didHighDpiRetry: selectedCandidate.source == .visionOCR,
                 didTargetedNumericSecondPass: numericResult.didSecondPass,
                 numericReasonCodes: finalNumericReport.reasonCodes,
-                sourceUnit: NumericSanity.detectSourceUnit(in: selectedCandidate.text).rawValue
+                sourceUnit: nil
             )
         }
 
@@ -239,7 +239,7 @@ public final class OCRWorker {
             didHighDpiRetry: didHighDPI || selectedCandidate.dpi >= config.highDPI,
             didTargetedNumericSecondPass: numericResult.didSecondPass,
             numericReasonCodes: finalNumericReport.reasonCodes,
-            sourceUnit: NumericSanity.detectSourceUnit(in: selectedCandidate.text).rawValue
+            sourceUnit: nil
         )
     }
 

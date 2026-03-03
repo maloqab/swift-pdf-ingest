@@ -4,33 +4,6 @@ import Testing
 
 @Suite("NumericSanity")
 struct NumericSanityTests {
-    @Test("KD'000 plain apostrophe normalization")
-    func normalizeKDThousandsAsciiApostrophe() {
-        let normalized = NumericSanity.normalizedKWDValueForChatbot(
-            rawNumericLiteral: "22,765",
-            sourceTextOrUnitHint: "KD'000s"
-        )
-        #expect(normalized == Decimal(22_765_000))
-    }
-
-    @Test("KD’000 curly apostrophe normalization")
-    func normalizeKDThousandsCurlyApostrophe() {
-        let normalized = NumericSanity.normalizedKWDValueForChatbot(
-            rawNumericLiteral: "22,765",
-            sourceTextOrUnitHint: "KD’000s"
-        )
-        #expect(normalized == Decimal(22_765_000))
-    }
-
-    @Test("Arabic thousand-unit normalization")
-    func normalizeArabicThousandUnit() {
-        let normalized = NumericSanity.normalizedKWDValueForChatbot(
-            rawNumericLiteral: "120.5",
-            sourceTextOrUnitHint: "الأرقام بالألف د.ك"
-        )
-        #expect(normalized == Decimal(string: "120500"))
-    }
-
     @Test("delimiter corruption detection")
     func detectsDelimiterCorruption() {
         let report = NumericSanity.analyze(text: "Operating income 98,,120 and revenue 10..44")
@@ -47,7 +20,7 @@ struct NumericSanityTests {
 
     @Test("digit-glyph repair normalizes mixed-script numeric tokens")
     func repairDigitGlyphConfusionsNormalizesTokens() {
-        let input = "Revenue 58l,d2 Net (05S,82S) Earnings 2٣8.001"
+        let input = "Revenue 58l,d2 Net (05S,82S) Earnings 2\u{0663}8.001"
         let corrected = NumericSanity.repairDigitGlyphConfusions(in: input)
 
         #expect(corrected.contains("581,62"))

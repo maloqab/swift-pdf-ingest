@@ -1,10 +1,5 @@
 import Foundation
 
-public enum SourceCurrencyUnit: String, Sendable {
-    case kwd = "KWD"
-    case kdThousands = "KD_000"
-}
-
 public enum NumericReasonCode: String, CaseIterable, Sendable {
     case malformedDecimal = "malformed_decimal"
     case impossibleNegativeTotal = "impossible_negative_total"
@@ -68,65 +63,6 @@ public enum NumericSanity {
         return repaired
     }
 
-    public static func detectSourceUnit(in text: String) -> SourceCurrencyUnit {
-        let normalizedLatin = normalizeLatinHint(text)
-        let compactLatin = normalizedLatin.replacingOccurrences(of: " ", with: "")
-
-        let latinHints = [
-            "KD'000", "KD'000S", "KWD'000", "KWD'000S",
-            "KD 000", "KD 000S", "KWD 000", "KWD 000S",
-            "KD000", "KD000S", "KWD000", "KWD000S",
-            "000 KD", "000 KWD"
-        ]
-
-        if latinHints.contains(where: { normalizedLatin.contains($0) || compactLatin.contains($0.replacingOccurrences(of: " ", with: "")) }) {
-            return .kdThousands
-        }
-
-        let normalizedArabic = normalizeArabicHint(text)
-        let compactArabic = normalizedArabic.replacingOccurrences(of: " ", with: "")
-
-        let arabicHints = [
-            "بالالف", "بالالاف", "الاف", "الف",
-            "الفد.ك", "الافد.ك", "الفديناركويتي", "الافديناركويتي",
-            "الافدينار", "الفدينار", "د.كالف", "د.كالاف", "دكالف", "دكالاف"
-        ]
-
-        if arabicHints.contains(where: { compactArabic.contains($0) }) {
-            return .kdThousands
-        }
-
-        return .kwd
-    }
-
-    public static func normalizeKWDValue(_ value: Decimal, sourceUnit: SourceCurrencyUnit) -> Decimal {
-        switch sourceUnit {
-        case .kwd:
-            return value
-        case .kdThousands:
-            return value * Decimal(1000)
-        }
-    }
-
-    public static func normalizedKWDValueForChatbot(
-        rawNumericLiteral: String,
-        sourceTextOrUnitHint: String
-    ) -> Decimal? {
-        guard let value = decimal(from: rawNumericLiteral) else {
-            return nil
-        }
-
-        let unit: SourceCurrencyUnit
-        let normalizedLatin = normalizeLatinHint(sourceTextOrUnitHint)
-        if normalizedLatin == SourceCurrencyUnit.kdThousands.rawValue || normalizedLatin.contains("KD'000") || normalizedLatin.contains("KWD'000") || normalizedLatin.contains("KD 000") {
-            unit = .kdThousands
-        } else {
-            unit = detectSourceUnit(in: sourceTextOrUnitHint)
-        }
-
-        return normalizeKWDValue(value, sourceUnit: unit)
-    }
-
     public static func decimal(from raw: String) -> Decimal? {
         let cleaned = raw
             .replacingOccurrences(of: " ", with: "")
@@ -149,28 +85,6 @@ public enum NumericSanity {
         return max(0, goodCount - badCount)
     }
 
-
-    private static func normalizeLatinHint(_ text: String) -> String {
-        text
-            .uppercased()
-            .replacingOccurrences(of: "’", with: "'")
-            .replacingOccurrences(of: "`", with: "'")
-            .replacingOccurrences(of: "´", with: "'")
-            .replacingOccurrences(of: "\u{2018}", with: "'")
-    }
-
-    private static func normalizeArabicHint(_ text: String) -> String {
-        text
-            .lowercased()
-            .replacingOccurrences(of: "أ", with: "ا")
-            .replacingOccurrences(of: "إ", with: "ا")
-            .replacingOccurrences(of: "آ", with: "ا")
-            .replacingOccurrences(of: "ى", with: "ي")
-            .replacingOccurrences(of: "ة", with: "ه")
-            .replacingOccurrences(of: "\u{0640}", with: "")
-            .replacingOccurrences(of: "’", with: "'")
-            .replacingOccurrences(of: "`", with: "'")
-    }
 
     private static func hasMalformedDecimal(in text: String) -> Bool {
         let patterns = [
