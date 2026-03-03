@@ -11,91 +11,7 @@ public enum TursoWriterError: Error {
     case embeddingDimensionMismatch(expected: Int, actual: Int)
 }
 
-public struct DocumentUpsertInput: Sendable {
-    public let sourceSHA256: String
-    public let sourceURL: String?
-    public let sourceFilename: String?
-    public let sourceLabel: String?
-    public let documentTitle: String?
-    public let sourceUnit: String
-
-    public init(
-        sourceSHA256: String,
-        sourceURL: String? = nil,
-        sourceFilename: String? = nil,
-        sourceLabel: String? = nil,
-        documentTitle: String? = nil,
-        sourceUnit: String = "KWD"
-    ) {
-        self.sourceSHA256 = sourceSHA256
-        self.sourceURL = sourceURL
-        self.sourceFilename = sourceFilename
-        self.sourceLabel = sourceLabel
-        self.documentTitle = documentTitle
-        self.sourceUnit = sourceUnit
-    }
-}
-
-public struct PageUpsertInput: Sendable {
-    public let pageNumber: Int
-    public let ocrVersion: String
-    public let extractionMethod: String
-    public let orientationDegrees: Int
-    public let dpi: Int
-    public let qualityScore: Double
-    public let confidence: Double?
-    public let textContent: String
-    public let normalizedTextContent: String?
-    public let numericSanityStatus: String
-
-    public init(
-        pageNumber: Int,
-        ocrVersion: String,
-        extractionMethod: String,
-        orientationDegrees: Int,
-        dpi: Int,
-        qualityScore: Double,
-        confidence: Double?,
-        textContent: String,
-        normalizedTextContent: String? = nil,
-        numericSanityStatus: String
-    ) {
-        self.pageNumber = pageNumber
-        self.ocrVersion = ocrVersion
-        self.extractionMethod = extractionMethod
-        self.orientationDegrees = orientationDegrees
-        self.dpi = dpi
-        self.qualityScore = qualityScore
-        self.confidence = confidence
-        self.textContent = textContent
-        self.normalizedTextContent = normalizedTextContent
-        self.numericSanityStatus = numericSanityStatus
-    }
-}
-
-public struct ProcessedPageWriteRequest: Sendable {
-    public let document: DocumentUpsertInput
-    public let page: PageUpsertInput
-    public let embedding: EmbeddingResult
-
-    public init(document: DocumentUpsertInput, page: PageUpsertInput, embedding: EmbeddingResult) {
-        self.document = document
-        self.page = page
-        self.embedding = embedding
-    }
-}
-
-public struct ProcessedPageWriteResult: Sendable, Equatable {
-    public let documentID: Int64
-    public let pageID: Int64
-
-    public init(documentID: Int64, pageID: Int64) {
-        self.documentID = documentID
-        self.pageID = pageID
-    }
-}
-
-public final class TursoWriter {
+public final class TursoWriter: StorageWriting {
     private var db: OpaquePointer?
     private let expectedEmbeddingDimension: Int
 
@@ -131,7 +47,7 @@ public final class TursoWriter {
     }
 
     @discardableResult
-    public func writeProcessedPage(_ request: ProcessedPageWriteRequest) throws -> ProcessedPageWriteResult {
+    public func writeProcessedPage(_ request: ProcessedPageWriteRequest) throws -> WriteResult {
         guard request.embedding.dimension == expectedEmbeddingDimension else {
             throw TursoWriterError.embeddingDimensionMismatch(
                 expected: expectedEmbeddingDimension,
@@ -145,7 +61,7 @@ public final class TursoWriter {
             let pageID = try upsertPageInTransaction(documentID: documentID, page: request.page)
             try upsertEmbeddingInTransaction(pageID: pageID, embedding: request.embedding)
             try execute("COMMIT;")
-            return ProcessedPageWriteResult(documentID: documentID, pageID: pageID)
+            return WriteResult(documentID: documentID, pageID: pageID)
         } catch {
             _ = try? execute("ROLLBACK;")
             throw error
@@ -258,7 +174,7 @@ public final class TursoWriter {
                 .double(page.confidence),
                 .text(page.textContent),
                 .text(page.normalizedTextContent),
-                .text(page.numericSanityStatus)
+                .text(page.numericSanityStatus ?? "clean")
             ]
         )
 
