@@ -5,7 +5,7 @@ CREATE TABLE documents (
   source_filename TEXT,
   source_label TEXT,
   document_title TEXT,
-  source_unit TEXT DEFAULT 'KWD',
+  source_unit TEXT,
   created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
@@ -22,7 +22,7 @@ CREATE TABLE pages (
   confidence REAL,
   text_content TEXT NOT NULL,
   normalized_text_content TEXT,
-  numeric_sanity_status TEXT NOT NULL DEFAULT 'clean' CHECK (numeric_sanity_status IN ('clean', 'suspicious', 'repaired')),
+  numeric_sanity_status TEXT,
   created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,

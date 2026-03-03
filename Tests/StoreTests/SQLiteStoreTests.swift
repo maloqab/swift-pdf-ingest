@@ -93,8 +93,8 @@ struct SQLiteStoreTests {
         #expect(try countRows(dbURL: dbURL, table: "page_embeddings") == 1)
     }
 
-    @Test("page schema enforces extraction_method and numeric_sanity_status contract")
-    func pageSchemaEnforcesExtractionMethodAndNumericSanityContract() throws {
+    @Test("page schema enforces extraction_method contract")
+    func pageSchemaEnforcesExtractionMethodContract() throws {
         let dbURL = temporaryDBURL()
         let writer = try SQLiteStore(databaseURL: dbURL, expectedEmbeddingDimension: 4)
 
@@ -121,7 +121,8 @@ struct SQLiteStoreTests {
             // expected
         }
 
-        let badSanityStatus = ProcessedPageWriteRequest(
+        // numeric_sanity_status is now a free-form TEXT column — any value is accepted
+        let freeSanityStatus = ProcessedPageWriteRequest(
             document: DocumentUpsertInput(sourceSHA256: "sha-5", sourceFilename: "e.pdf"),
             page: PageUpsertInput(
                 pageNumber: 1,
@@ -137,12 +138,9 @@ struct SQLiteStoreTests {
             embedding: EmbeddingResult(modelVersion: "embed-v1", vector: [0.1, 0.2, 0.3, 0.4])
         )
 
-        do {
-            _ = try writer.writeProcessedPage(badSanityStatus)
-            Issue.record("Expected SQLite CHECK failure for invalid numeric_sanity_status")
-        } catch SQLiteStoreError.sqlite {
-            // expected
-        }
+        let result = try writer.writeProcessedPage(freeSanityStatus)
+        #expect(result.documentID > 0)
+        #expect(result.pageID > 0)
     }
 
     @Test("embedding dimension mismatch blocks persistence")
