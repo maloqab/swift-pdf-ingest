@@ -12,6 +12,7 @@ STATE_FILE="${REPO_ROOT}/runtime/state/swift_ingest_state.json"
 MAX_DOCS="25"
 TIMEOUT_SECONDS=""
 OCR_FALLBACK="on"
+LANGUAGES="en"
 
 usage() {
   cat <<'EOF'
@@ -28,6 +29,7 @@ Optional:
   --max-docs <n>            Max PDFs per invocation (default: 25)
   --timeout-seconds <n>     Optional processing deadline in seconds
   --ocr-fallback <on|off>   Vision OCR fallback toggle (default: on)
+  --languages <codes>       Comma-separated language codes (default: en)
 EOF
 }
 
@@ -49,6 +51,8 @@ while [[ $# -gt 0 ]]; do
       TIMEOUT_SECONDS="$2"; shift 2 ;;
     --ocr-fallback)
       OCR_FALLBACK="$2"; shift 2 ;;
+    --languages)
+      LANGUAGES="$2"; shift 2 ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -66,11 +70,11 @@ fi
 
 mkdir -p "$(dirname "${DB_PATH}")" "$(dirname "${SEEN_FILE}")" "$(dirname "${STATE_FILE}")"
 
-BIN_DIR="$(cd "${REPO_ROOT}" && swift build --product SwiftIngestRuntime --show-bin-path)"
-BIN_PATH="${BIN_DIR}/SwiftIngestRuntime"
+BIN_DIR="$(cd "${REPO_ROOT}" && swift build --product pdf-ingest --show-bin-path)"
+BIN_PATH="${BIN_DIR}/pdf-ingest"
 
 if [[ ! -x "${BIN_PATH}" ]]; then
-  echo "run_ingest error: SwiftIngestRuntime binary missing at ${BIN_PATH}" >&2
+  echo "run_ingest error: pdf-ingest binary missing at ${BIN_PATH}" >&2
   exit 2
 fi
 
@@ -83,6 +87,7 @@ CMD=(
   --state-file "${STATE_FILE}"
   --max-docs "${MAX_DOCS}"
   --ocr-fallback "${OCR_FALLBACK}"
+  --languages "${LANGUAGES}"
 )
 
 if [[ -n "${TIMEOUT_SECONDS}" ]]; then
