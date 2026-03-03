@@ -170,7 +170,7 @@ private struct DocumentProcessResult {
     let chunkCount: Int
     let pages: [ProcessedPage]
     let failedPages: [Int]
-    let sourceUnit: SourceCurrencyUnit
+    let sourceUnit: String?
 }
 
 private enum DocumentProcessingError: Error {
@@ -261,7 +261,7 @@ private func main() -> RuntimeExitCode {
                     sourceFilename: item.url.lastPathComponent,
                     sourceLabel: sourceLabel,
                     documentTitle: documentTitle,
-                    sourceUnit: processResult.sourceUnit.rawValue
+                    sourceUnit: processResult.sourceUnit
                 )
 
                 var seenDocument = false
@@ -513,7 +513,7 @@ private func processPDF(url: URL, enableOCRFallback: Bool) throws -> DocumentPro
     var chunks = 0
     var pages: [ProcessedPage] = []
     var failedPages: [Int] = []
-    var sourceUnit: SourceCurrencyUnit = .kwd
+    var sourceUnit: String? = nil
 
     for pageNumber in 0..<document.pageCount {
         guard let page = document.page(at: pageNumber) else {
@@ -589,7 +589,7 @@ private func processTextLayerOnly(page: PDFPagePayload) throws -> OCRWorkerResul
         didHighDpiRetry: false,
         didTargetedNumericSecondPass: false,
         numericReasonCodes: report.reasonCodes,
-        sourceUnit: NumericSanity.detectSourceUnit(in: repairedText)
+        sourceUnit: NumericSanity.detectSourceUnit(in: repairedText).rawValue
     )
 }
 

@@ -79,7 +79,7 @@ public struct OCRWorkerResult {
     public let didHighDpiRetry: Bool
     public let didTargetedNumericSecondPass: Bool
     public let numericReasonCodes: [NumericReasonCode]
-    public let sourceUnit: SourceCurrencyUnit
+    public let sourceUnit: String?
 
     public init(
         pageID: String,
@@ -93,7 +93,7 @@ public struct OCRWorkerResult {
         didHighDpiRetry: Bool,
         didTargetedNumericSecondPass: Bool,
         numericReasonCodes: [NumericReasonCode],
-        sourceUnit: SourceCurrencyUnit
+        sourceUnit: String? = nil
     ) {
         self.pageID = pageID
         self.text = text
@@ -172,7 +172,7 @@ public final class OCRWorker {
                 didHighDpiRetry: selectedCandidate.source == .visionOCR,
                 didTargetedNumericSecondPass: numericResult.didSecondPass,
                 numericReasonCodes: finalNumericReport.reasonCodes,
-                sourceUnit: NumericSanity.detectSourceUnit(in: selectedCandidate.text)
+                sourceUnit: NumericSanity.detectSourceUnit(in: selectedCandidate.text).rawValue
             )
         }
 
@@ -239,7 +239,7 @@ public final class OCRWorker {
             didHighDpiRetry: didHighDPI || selectedCandidate.dpi >= config.highDPI,
             didTargetedNumericSecondPass: numericResult.didSecondPass,
             numericReasonCodes: finalNumericReport.reasonCodes,
-            sourceUnit: NumericSanity.detectSourceUnit(in: selectedCandidate.text)
+            sourceUnit: NumericSanity.detectSourceUnit(in: selectedCandidate.text).rawValue
         )
     }
 
@@ -466,7 +466,7 @@ extension OCRWorker: TextExtracting {
                 "didHighDpiRetry": String(result.didHighDpiRetry),
                 "didTargetedNumericSecondPass": String(result.didTargetedNumericSecondPass),
                 "numericReasonCodes": result.numericReasonCodes.map(\.rawValue).joined(separator: ","),
-                "sourceUnit": result.sourceUnit.rawValue
+                "sourceUnit": result.sourceUnit ?? ""
             ]
         )
     }

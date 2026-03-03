@@ -71,7 +71,7 @@ struct OCRWorkerTests {
 
         #expect(result.didTargetedNumericSecondPass)
         #expect(result.numericReasonCodes.isEmpty)
-        #expect(result.sourceUnit == .kdThousands)
+        #expect(result.sourceUnit == "KD_000")
         #expect(result.source == .visionOCR)
         #expect(recognizer.calls.count == 1)
         #expect(logger.records.contains(where: { $0.reasonCode == NumericReasonCode.malformedDecimal.rawValue }))
