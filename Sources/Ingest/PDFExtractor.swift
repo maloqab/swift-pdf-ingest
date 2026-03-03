@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 
 public enum PageOrientation: Int, CaseIterable {
     case up = 0
@@ -20,8 +22,11 @@ public struct PDFPagePayload {
     public let textLayerText: String?
     public let metadataOrientation: PageOrientation
     public let languageHints: [String]
+    #if canImport(CoreGraphics)
     public let renderedImage: CGImage?
+    #endif
 
+    #if canImport(CoreGraphics)
     public init(
         pageID: String,
         pageNumber: Int,
@@ -39,6 +44,23 @@ public struct PDFPagePayload {
         self.languageHints = languageHints
         self.renderedImage = renderedImage
     }
+    #else
+    public init(
+        pageID: String,
+        pageNumber: Int,
+        name: String,
+        textLayerText: String?,
+        metadataOrientation: PageOrientation = .up,
+        languageHints: [String] = []
+    ) {
+        self.pageID = pageID
+        self.pageNumber = pageNumber
+        self.name = name
+        self.textLayerText = textLayerText
+        self.metadataOrientation = metadataOrientation
+        self.languageHints = languageHints
+    }
+    #endif
 }
 
 public struct OCRCandidate {
