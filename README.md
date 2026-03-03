@@ -1,6 +1,8 @@
 # swift-pdf-ingest
 
-A Swift-native PDF ingestion pipeline that's **~30x faster** than Python OCR stacks — with higher accuracy through multi-pass extraction and quality gates.
+A Swift-native PDF ingestion pipeline built on **Apple's PDFKit + Vision frameworks** — **~30x faster** than Python OCR stacks, with higher accuracy through multi-pass extraction and quality gates.
+
+> **macOS only.** This project uses Apple-native frameworks (PDFKit, Vision, CoreGraphics) that are not available on Linux or Windows. Requires macOS 13+ and Swift 6.0+.
 
 ## Why swift-pdf-ingest?
 
@@ -11,7 +13,7 @@ A Swift-native PDF ingestion pipeline that's **~30x faster** than Python OCR sta
 | **OCR strategy** | Multi-pass with quality gates | Single-pass |
 | **Memory overhead** | Minimal (streaming) | PIL + numpy buffers |
 
-**Why it's faster:** Native PDFKit + Vision framework. No Python interpreter overhead. No PIL/numpy serialization roundtrips. Compiled Swift performance.
+**Why it's faster:** Apple's native PDFKit + Vision framework do the heavy lifting at the OS level. No Python interpreter overhead. No PIL/numpy serialization roundtrips. Compiled Swift performance.
 
 **Why it's more accurate:** Text-layer extraction first, Vision OCR only when quality is weak. Orientation sweeping across 4 rotations. Automatic high-DPI retry. Quality gates reject garbage text before it enters your database.
 
@@ -173,12 +175,13 @@ Three tables, created automatically:
 
 Full schema: [`docs/sqlite_schema.sql`](docs/sqlite_schema.sql)
 
-## Platform Support
+## Requirements
 
-- **macOS 13+**: Full pipeline (PDFKit + Vision OCR)
-- **Linux**: Library modules build and test. Full PDF runtime requires PDFKit.
+- **macOS 13+** (Ventura or later)
+- **Swift 6.0+**
+- **Xcode 16+** (or Swift toolchain with PDFKit/Vision support)
 
-Requirements: Swift 6.0+, SQLite3
+This project relies on Apple-native frameworks — **PDFKit** for PDF parsing, **Vision** for OCR, and **CoreGraphics** for image rendering. These frameworks are the core of what makes the pipeline fast and accurate, and they are only available on macOS.
 
 ## License
 
