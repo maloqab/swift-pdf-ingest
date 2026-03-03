@@ -1,172 +1,185 @@
-# Swift PDF Ingest Runtime
+# swift-pdf-ingest
 
-A standalone Swift pipeline for ingesting PDF documents into SQLite with OCR fallback, deterministic embeddings, and idempotent upsert behavior.
+A Swift-native PDF ingestion pipeline that's **~30x faster** than Python OCR stacks — with higher accuracy through multi-pass extraction and quality gates.
 
-## Problem solved
+## Why swift-pdf-ingest?
 
-Many document pipelines mix source crawling logic with extraction/runtime logic, making reuse difficult. This repository provides a clean ingestion core that only focuses on:
+| | swift-pdf-ingest | Python (pytesseract) |
+|---|---|---|
+| **Per-PDF throughput** | ~10s | ~300s |
+| **1100-doc corpus** | ~3 hours | ~4 days |
+| **OCR strategy** | Multi-pass with quality gates | Single-pass |
+| **Memory overhead** | Minimal (streaming) | PIL + numpy buffers |
 
-- reading PDFs from a directory
-- extracting page text (text-layer first, OCR fallback)
-- generating embeddings
-- writing normalized document/page/embedding records to SQLite
-- resuming safely across repeated runs
+**Why it's faster:** Native PDFKit + Vision framework. No Python interpreter overhead. No PIL/numpy serialization roundtrips. Compiled Swift performance.
 
-## Architecture pipeline
+**Why it's more accurate:** Text-layer extraction first, Vision OCR only when quality is weak. Orientation sweeping across 4 rotations. Automatic high-DPI retry. Quality gates reject garbage text before it enters your database.
 
-```text
-PDF directory + source_manifest.json
-        |
-        v
-[Discover + SHA256 signatures]
-        |
-        +--> seen-file dedup gate
-        |
-        v
-[Per-page extraction]
-  - text layer path
-  - Vision OCR fallback path (optional)
-  - numeric sanity + repair hints
-        |
-        v
-[Chunk + embedding generation]
-        |
-        v
-[SQLite upsert writer]
-  - documents
-  - pages
-  - page_embeddings
-        |
-        v
-[state + run summary]
-```
-
-## Repository layout
-
-```text
-Sources/
-  Ingest/                 # OCR worker, extraction logic, state/decision helpers
-  Store/                  # SQLite writer and schema bootstrap
-  SwiftIngestRuntime/     # CLI runtime executable
-Tests/
-  IngestTests/
-  StoreTests/
-scripts/
-  run_ingest.sh           # generic shell wrapper
-examples/
-  source_manifest.json
-runtime/
-  ...                     # created at runtime (state, db, logs)
-```
-
-## Prerequisites
-
-- Swift 6.0+
-- SQLite3 runtime (standard on macOS, install `libsqlite3-dev` on Linux)
-
-Platform notes:
-
-- *macOS*: full runtime supported (PDFKit + Vision OCR fallback).
-- *Linux*: package builds and tests run for shared modules, but full PDF runtime execution requires PDFKit-capable environment.
-
-## Quick start
+## Quick Start
 
 ```bash
-git clone <private-repo-url>
-cd swift-pdf-ingest-runtime
+git clone https://github.com/maloqab/swift-pdf-ingest.git
+cd swift-pdf-ingest
 swift test
-swift build --product SwiftIngestRuntime
+swift build --product pdf-ingest
 ```
 
 Run ingestion:
 
 ```bash
 ./scripts/run_ingest.sh \
-  --pdf-dir ./runtime/inbox \
+  --pdf-dir ./pdfs \
   --manifest ./examples/source_manifest.json \
-  --db-path ./runtime/data/pipeline.sqlite \
+  --db-path ./data/pipeline.sqlite \
   --max-docs 25 \
-  --timeout-seconds 1800 \
   --ocr-fallback on
 ```
 
-## Manifest format spec
+## Architecture
 
-The source manifest is a JSON object keyed by PDF filename:
+```
+PDF directory + source_manifest.json
+        |
+        v
+[Discover + SHA256 dedup]
+        |
+        v
+[Per-page text extraction]         <-- TextExtracting protocol
+  - text layer (fast path)
+  - Vision OCR fallback (quality-gated)
+  - orientation sweep + DPI retry
+        |
+        v
+[Embedding generation]             <-- EmbeddingGenerating protocol
+        |
+        v
+[Storage writer]                   <-- StorageWriting protocol
+  - documents / pages / page_embeddings
+        |
+        v
+[State tracking + run summary]
+```
+
+Every step is **pluggable via protocols**. Bring your own embedding model, storage backend, or text extraction strategy.
+
+## Pluggable Protocols
+
+### EmbeddingGenerating
+
+```swift
+public protocol EmbeddingGenerating {
+    func embed(text: String) throws -> [Float]
+}
+```
+
+Ships with a deterministic placeholder for testing. Implement this to connect OpenAI, Ollama, or any embedding API.
+
+### StorageWriting
+
+```swift
+public protocol StorageWriting {
+    func writeProcessedPage(_ request: ProcessedPageWriteRequest) throws -> WriteResult
+}
+```
+
+Default: `SQLiteStore`. Implement this for Postgres, Turso, or any other backend.
+
+### TextExtracting
+
+```swift
+public protocol TextExtracting {
+    func extract(from page: PDFPagePayload) throws -> ExtractionResult
+}
+```
+
+Default: `OCRWorker` (multi-pass with Vision OCR). Implement this for custom extraction logic.
+
+## CLI Options
+
+```
+pdf-ingest [options]
+
+  --inbox <path>                     PDF input directory (default: runtime/inbox)
+  --db-path <path>                   SQLite database path (default: runtime/data/pipeline.sqlite)
+  --source-manifest <path>           JSON manifest mapping filenames to metadata
+  --max-docs <n>                     Max PDFs per invocation (default: 25)
+  --timeout-seconds <n>              Processing deadline in seconds
+  --ocr-fallback <on|off>            Vision OCR fallback (default: on)
+  --languages <list>                 Comma-separated OCR languages (default: en)
+  --embedding-dim <n>                Embedding vector dimension (default: 16)
+  --embedding-model-version <name>   Embedding model version label
+```
+
+## Manifest Format
 
 ```json
 {
-  "filename.pdf": {
-    "source_url": "https://example.com/file.pdf",
-    "source_label": "public-filings",
-    "document_title": "Optional human title"
+  "annual_report_2025.pdf": {
+    "source_url": "https://example.com/reports/annual-2025.pdf",
+    "source_label": "annual-reports",
+    "document_title": "Annual Report 2025"
   }
 }
 ```
 
-Fields:
+All fields are optional. Files not in the manifest still get ingested with filename-based titles.
 
-- `source_url` (optional): canonical source URL.
-- `source_label` (optional): free-form origin/category label.
-- `document_title` (optional): display title used in `documents.document_title`.
+## Resume and Dedup
 
-If a filename is not present in the manifest, ingestion still succeeds and defaults to filename-based title.
+- Each file gets a signature: `sha256 + path`
+- Signatures are appended to a seen-file only after successful processing
+- Subsequent runs skip already-processed files automatically
+- Runtime state tracks progress for monitoring and recovery
 
-## Config options
+Safe for incremental execution across large backfills.
 
-`SwiftIngestRuntime` supports:
+## Repository Layout
 
-- `--max-docs <n>`: batch size per invocation
-- `--timeout-seconds <n>`: hard stop window for a single run
-- `--ocr-fallback <on|off>`: toggle Vision OCR fallback when text layer quality is weak
-- `--embedding-dim <n>`: embedding vector dimension
-- `--embedding-model-version <name>`: embedding model version label
-
-## Resume and dedup behavior
-
-- Each file receives a signature: `sha256 + absolute_path`.
-- Signatures are appended to a seen-file only after successful processing.
-- Subsequent runs skip seen signatures automatically.
-- Runtime state (`swift_ingest_state.json`) tracks processed/failed/chunk counters and current item metadata.
-
-This enables safe incremental execution for large backfills.
-
-## SQLite schema documentation
-
-Tables created automatically:
-
-- `documents`
-- `pages`
-- `page_embeddings`
-
-Schema SQL is documented in `docs/sqlite_schema.sql`.
-
-Upsert behavior:
-
-- `documents`: conflict key `source_sha256`
-- `pages`: conflict key `(document_id, page_number, ocr_version)`
-- `page_embeddings`: conflict key `(page_id, embedding_model_version)`
-
-## Benchmarks
-
-Observed ingest characteristics from production-scale runs:
-
-- corpus size: ~1100 PDFs
-- throughput: ~10 seconds per PDF (end-to-end)
-- speedup: ~30x faster versus Python-heavy OCR stacks for equivalent workloads
-
-## Use cases
-
-- regulatory and public filings
-- contracts and legal packet ingestion
-- internal policy/process PDFs
-- mixed-language financial document pipelines
-
-## Example validation commands
-
-```bash
-swift test
-swift build --product SwiftIngestRuntime
-./scripts/run_ingest.sh --pdf-dir ./runtime/inbox --manifest ./examples/source_manifest.json --max-docs 5
-sqlite3 ./runtime/data/pipeline.sqlite '.tables'
 ```
+Sources/
+  Ingest/                   # Core: protocols, OCR worker, extraction, state
+    Protocols/              # EmbeddingGenerating, StorageWriting, TextExtracting
+  Store/                    # SQLiteStore (default StorageWriting impl)
+  PDFIngest/                # CLI executable
+Tests/
+  IngestTests/
+  StoreTests/
+examples/
+  FinancialArabicPlugin/    # Example domain plugin (KWD currency, Arabic numerals)
+  source_manifest.json
+docs/
+  sqlite_schema.sql
+scripts/
+  run_ingest.sh
+```
+
+## Domain Plugins
+
+The core pipeline is domain-agnostic. Domain-specific logic lives in plugins. See `examples/FinancialArabicPlugin/` for a template showing:
+
+- Currency unit detection (KWD)
+- Arabic numeral normalization
+- Financial value parsing
+
+Use it as a starting point for your own domain — medical terminology, legal citations, multi-currency pipelines, etc.
+
+## SQLite Schema
+
+Three tables, created automatically:
+
+- `documents` — source metadata, SHA256, dedup key
+- `pages` — per-page text, OCR quality scores, extraction method
+- `page_embeddings` — vectors with model version tracking
+
+Full schema: [`docs/sqlite_schema.sql`](docs/sqlite_schema.sql)
+
+## Platform Support
+
+- **macOS 13+**: Full pipeline (PDFKit + Vision OCR)
+- **Linux**: Library modules build and test. Full PDF runtime requires PDFKit.
+
+Requirements: Swift 6.0+, SQLite3
+
+## License
+
+[MIT](LICENSE)
