@@ -20,17 +20,9 @@ let package = Package(
             name: "Ingest",
             path: "Sources/Ingest"
         ),
-        .systemLibrary(
-            name: "CSQLite3",
-            path: "Sources/CSQLite3",
-            pkgConfig: "sqlite3",
-            providers: [
-                .apt(["libsqlite3-dev"]),
-            ]
-        ),
         .target(
             name: "Store",
-            dependencies: ["Ingest", "CSQLite3"],
+            dependencies: ["Ingest"],
             path: "Sources/Store"
         ),
         .executableTarget(
