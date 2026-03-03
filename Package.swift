@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "SwiftPDFIngestRuntime",
+    name: "swift-pdf-ingest",
     platforms: [
         .macOS(.v13)
     ],
     products: [
         .library(name: "Ingest", targets: ["Ingest"]),
         .library(name: "Store", targets: ["Store"]),
-        .executable(name: "SwiftIngestRuntime", targets: ["SwiftIngestRuntime"])
+        .executable(name: "pdf-ingest", targets: ["PDFIngest"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-testing.git", from: "0.9.0")
@@ -25,9 +25,9 @@ let package = Package(
             path: "Sources/Store"
         ),
         .executableTarget(
-            name: "SwiftIngestRuntime",
+            name: "PDFIngest",
             dependencies: ["Ingest", "Store"],
-            path: "Sources/SwiftIngestRuntime"
+            path: "Sources/PDFIngest"
         ),
         .testTarget(
             name: "IngestTests",
