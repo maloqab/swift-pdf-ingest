@@ -4,14 +4,14 @@ import Ingest
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
-public enum TursoWriterError: Error {
+public enum SQLiteStoreError: Error {
     case sqlite(String)
     case databaseClosed
     case missingRow(String)
     case embeddingDimensionMismatch(expected: Int, actual: Int)
 }
 
-public final class TursoWriter: StorageWriting {
+public final class SQLiteStore: StorageWriting {
     private var db: OpaquePointer?
     private let expectedEmbeddingDimension: Int
 
@@ -27,7 +27,7 @@ public final class TursoWriter: StorageWriting {
         if sqlite3_open_v2(databaseURL.path, &handle, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) != SQLITE_OK {
             let message = handle.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "failed to open sqlite database"
             sqlite3_close(handle)
-            throw TursoWriterError.sqlite(message)
+            throw SQLiteStoreError.sqlite(message)
         }
 
         db = handle
@@ -49,7 +49,7 @@ public final class TursoWriter: StorageWriting {
     @discardableResult
     public func writeProcessedPage(_ request: ProcessedPageWriteRequest) throws -> WriteResult {
         guard request.embedding.dimension == expectedEmbeddingDimension else {
-            throw TursoWriterError.embeddingDimensionMismatch(
+            throw SQLiteStoreError.embeddingDimensionMismatch(
                 expected: expectedEmbeddingDimension,
                 actual: request.embedding.dimension
             )
@@ -94,7 +94,7 @@ public final class TursoWriter: StorageWriting {
 
     public func upsertPageEmbedding(pageID: Int64, embedding: EmbeddingResult) throws {
         guard embedding.dimension == expectedEmbeddingDimension else {
-            throw TursoWriterError.embeddingDimensionMismatch(
+            throw SQLiteStoreError.embeddingDimensionMismatch(
                 expected: expectedEmbeddingDimension,
                 actual: embedding.dimension
             )
@@ -137,7 +137,7 @@ public final class TursoWriter: StorageWriting {
             "SELECT id FROM documents WHERE source_sha256 = ? LIMIT 1;",
             binds: [.text(input.sourceSHA256)]
         ) else {
-            throw TursoWriterError.missingRow("document upsert did not return id")
+            throw SQLiteStoreError.missingRow("document upsert did not return id")
         }
 
         return id
@@ -190,7 +190,7 @@ public final class TursoWriter: StorageWriting {
                 .text(page.ocrVersion)
             ]
         ) else {
-            throw TursoWriterError.missingRow("page upsert did not return id")
+            throw SQLiteStoreError.missingRow("page upsert did not return id")
         }
 
         return pageID
@@ -275,11 +275,11 @@ public final class TursoWriter: StorageWriting {
 
     @discardableResult
     private func execute(_ sql: String, binds: [BindValue] = []) throws -> Int32 {
-        guard let db else { throw TursoWriterError.databaseClosed }
+        guard let db else { throw SQLiteStoreError.databaseClosed }
 
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw TursoWriterError.sqlite(lastSQLiteMessage())
+            throw SQLiteStoreError.sqlite(lastSQLiteMessage())
         }
         defer { sqlite3_finalize(statement) }
 
@@ -287,18 +287,18 @@ public final class TursoWriter: StorageWriting {
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE || stepResult == SQLITE_ROW else {
-            throw TursoWriterError.sqlite(lastSQLiteMessage())
+            throw SQLiteStoreError.sqlite(lastSQLiteMessage())
         }
 
         return sqlite3_changes(db)
     }
 
     private func queryInt64(_ sql: String, binds: [BindValue]) throws -> Int64? {
-        guard let db else { throw TursoWriterError.databaseClosed }
+        guard let db else { throw SQLiteStoreError.databaseClosed }
 
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw TursoWriterError.sqlite(lastSQLiteMessage())
+            throw SQLiteStoreError.sqlite(lastSQLiteMessage())
         }
         defer { sqlite3_finalize(statement) }
 
@@ -306,7 +306,7 @@ public final class TursoWriter: StorageWriting {
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_ROW || stepResult == SQLITE_DONE else {
-            throw TursoWriterError.sqlite(lastSQLiteMessage())
+            throw SQLiteStoreError.sqlite(lastSQLiteMessage())
         }
 
         guard stepResult == SQLITE_ROW else { return nil }
@@ -339,7 +339,7 @@ public final class TursoWriter: StorageWriting {
             }
 
             guard result == SQLITE_OK else {
-                throw TursoWriterError.sqlite(lastSQLiteMessage())
+                throw SQLiteStoreError.sqlite(lastSQLiteMessage())
             }
         }
     }

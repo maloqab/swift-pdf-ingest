@@ -4,12 +4,12 @@ import Testing
 @testable import Store
 @testable import Ingest
 
-@Suite("TursoWriter")
-struct TursoWriterTests {
+@Suite("SQLiteStore")
+struct SQLiteStoreTests {
     @Test("writes document/page/embedding transactionally")
     func writesDocumentPageAndEmbeddingTransactionally() throws {
         let dbURL = temporaryDBURL()
-        let writer = try TursoWriter(databaseURL: dbURL, expectedEmbeddingDimension: 4)
+        let writer = try SQLiteStore(databaseURL: dbURL, expectedEmbeddingDimension: 4)
 
         let request = ProcessedPageWriteRequest(
             document: DocumentUpsertInput(
@@ -47,7 +47,7 @@ struct TursoWriterTests {
     @Test("upsert semantics keep ids stable for idempotency keys")
     func upsertSemanticsKeepIDsStableForIdempotencyKeys() throws {
         let dbURL = temporaryDBURL()
-        let writer = try TursoWriter(databaseURL: dbURL, expectedEmbeddingDimension: 4)
+        let writer = try SQLiteStore(databaseURL: dbURL, expectedEmbeddingDimension: 4)
 
         let request1 = ProcessedPageWriteRequest(
             document: DocumentUpsertInput(sourceSHA256: "sha-2", sourceFilename: "a.pdf", sourceLabel: "batch-a", documentTitle: "A", sourceUnit: "KWD"),
@@ -96,7 +96,7 @@ struct TursoWriterTests {
     @Test("page schema enforces extraction_method and numeric_sanity_status contract")
     func pageSchemaEnforcesExtractionMethodAndNumericSanityContract() throws {
         let dbURL = temporaryDBURL()
-        let writer = try TursoWriter(databaseURL: dbURL, expectedEmbeddingDimension: 4)
+        let writer = try SQLiteStore(databaseURL: dbURL, expectedEmbeddingDimension: 4)
 
         let badExtraction = ProcessedPageWriteRequest(
             document: DocumentUpsertInput(sourceSHA256: "sha-4", sourceFilename: "d.pdf"),
@@ -117,7 +117,7 @@ struct TursoWriterTests {
         do {
             _ = try writer.writeProcessedPage(badExtraction)
             Issue.record("Expected SQLite CHECK failure for invalid extraction_method")
-        } catch TursoWriterError.sqlite {
+        } catch SQLiteStoreError.sqlite {
             // expected
         }
 
@@ -140,7 +140,7 @@ struct TursoWriterTests {
         do {
             _ = try writer.writeProcessedPage(badSanityStatus)
             Issue.record("Expected SQLite CHECK failure for invalid numeric_sanity_status")
-        } catch TursoWriterError.sqlite {
+        } catch SQLiteStoreError.sqlite {
             // expected
         }
     }
@@ -148,7 +148,7 @@ struct TursoWriterTests {
     @Test("embedding dimension mismatch blocks persistence")
     func embeddingDimensionMismatchBlocksPersistence() throws {
         let dbURL = temporaryDBURL()
-        let writer = try TursoWriter(databaseURL: dbURL, expectedEmbeddingDimension: 4)
+        let writer = try SQLiteStore(databaseURL: dbURL, expectedEmbeddingDimension: 4)
 
         let request = ProcessedPageWriteRequest(
             document: DocumentUpsertInput(sourceSHA256: "sha-3", sourceFilename: "c.pdf"),
@@ -169,7 +169,7 @@ struct TursoWriterTests {
         do {
             _ = try writer.writeProcessedPage(request)
             Issue.record("Expected embedding dimension mismatch")
-        } catch TursoWriterError.embeddingDimensionMismatch(let expected, let actual) {
+        } catch SQLiteStoreError.embeddingDimensionMismatch(let expected, let actual) {
             #expect(expected == 4)
             #expect(actual == 3)
         }

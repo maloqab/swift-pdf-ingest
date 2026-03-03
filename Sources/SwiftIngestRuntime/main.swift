@@ -205,7 +205,7 @@ private func main() -> RuntimeExitCode {
         try FileManager.default.createDirectory(at: config.dbPath.deletingLastPathComponent(), withIntermediateDirectories: true)
 
         let sourceManifest = try loadSourceManifest(path: config.sourceManifestPath)
-        let writer = try TursoWriter(databaseURL: config.dbPath, expectedEmbeddingDimension: config.embeddingDimension)
+        let writer = try SQLiteStore(databaseURL: config.dbPath, expectedEmbeddingDimension: config.embeddingDimension)
         let embeddingWorker = EmbeddingWorker(
             generator: DeterministicEmbeddingGenerator(dimension: config.embeddingDimension),
             expectedDimension: config.embeddingDimension,
