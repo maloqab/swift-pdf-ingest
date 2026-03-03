@@ -29,4 +29,4 @@ jobs:
       - name: Build libraries
         run: swift build --target Ingest --target Store
       - name: Test libraries
-        run: swift test --target IngestTests --target StoreTests
+        run: swift test --filter 'IngestTests|StoreTests'
