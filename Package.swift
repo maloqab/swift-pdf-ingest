@@ -1,6 +1,12 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
+#if os(Linux)
+let storeDeps: [Target.Dependency] = ["Ingest", "CSQLite3"]
+#else
+let storeDeps: [Target.Dependency] = ["Ingest"]
+#endif
+
 let package = Package(
     name: "swift-pdf-ingest",
     platforms: [
@@ -19,9 +25,17 @@ let package = Package(
             name: "Ingest",
             path: "Sources/Ingest"
         ),
+        .systemLibrary(
+            name: "CSQLite3",
+            path: "Sources/CSQLite3",
+            pkgConfig: "sqlite3",
+            providers: [
+                .apt(["libsqlite3-dev"]),
+            ]
+        ),
         .target(
             name: "Store",
-            dependencies: ["Ingest"],
+            dependencies: storeDeps,
             path: "Sources/Store"
         ),
         .executableTarget(

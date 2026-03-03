@@ -24,6 +24,8 @@ jobs:
       image: swift:6.0
     steps:
       - uses: actions/checkout@v4
+      - name: Install SQLite3 dev headers
+        run: apt-get update && apt-get install -y libsqlite3-dev
       - name: Build libraries
         run: swift build --target Ingest --target Store
       - name: Test libraries
