@@ -449,3 +449,25 @@ public final class OCRWorker {
         )
     }
 }
+
+extension OCRWorker: TextExtracting {
+    public func extract(from page: PDFPagePayload) throws -> ExtractionResult {
+        let result = try process(page: page)
+        return ExtractionResult(
+            pageID: result.pageID,
+            text: result.text,
+            qualityScore: result.qualityScore,
+            confidence: result.confidence,
+            orientation: result.orientation,
+            source: result.source,
+            dpi: result.dpi,
+            metadata: [
+                "didSweepOrientations": String(result.didSweepOrientations),
+                "didHighDpiRetry": String(result.didHighDpiRetry),
+                "didTargetedNumericSecondPass": String(result.didTargetedNumericSecondPass),
+                "numericReasonCodes": result.numericReasonCodes.map(\.rawValue).joined(separator: ","),
+                "sourceUnit": result.sourceUnit.rawValue
+            ]
+        )
+    }
+}
