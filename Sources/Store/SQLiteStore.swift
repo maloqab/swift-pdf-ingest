@@ -1,5 +1,5 @@
 import Foundation
-#if canImport(SQLite3)
+#if canImport(Darwin)
 import SQLite3
 #else
 import CSQLite3
