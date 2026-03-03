@@ -22,6 +22,7 @@ private struct RuntimeConfig {
     let maxDocumentsPerRun: Int
     let timeoutSeconds: Int?
     let enableOCRFallback: Bool
+    let languages: [String]
 
     static func parse(arguments: [String]) throws -> RuntimeConfig {
         var inboxDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -38,6 +39,7 @@ private struct RuntimeConfig {
         var maxDocumentsPerRun = 25
         var timeoutSeconds: Int?
         var enableOCRFallback = true
+        var languages: [String] = ["en"]
 
         var index = 0
         while index < arguments.count {
@@ -100,6 +102,10 @@ private struct RuntimeConfig {
                 default:
                     throw CLIError("--ocr-fallback must be one of: on|off")
                 }
+            case "--languages":
+                index += 1
+                guard index < arguments.count else { throw CLIError("missing value for --languages") }
+                languages = arguments[index].split(separator: ",").map { String($0.trimmingCharacters(in: .whitespaces)) }
             case "--help", "-h":
                 printHelp()
                 Foundation.exit(0)
@@ -119,7 +125,8 @@ private struct RuntimeConfig {
             embeddingModelVersion: embeddingModelVersion,
             maxDocumentsPerRun: maxDocumentsPerRun,
             timeoutSeconds: timeoutSeconds,
-            enableOCRFallback: enableOCRFallback
+            enableOCRFallback: enableOCRFallback,
+            languages: languages
         )
     }
 
@@ -137,6 +144,7 @@ private struct RuntimeConfig {
               --max-docs <n>                     Max PDFs to process per invocation (default: 25)
               --timeout-seconds <n>              Optional processing deadline in seconds
               --ocr-fallback <on|off>            Enable Vision OCR fallback when text layer is weak (default: on)
+              --languages <list>                 Comma-separated OCR language list (default: en)
             """
         )
     }
@@ -242,7 +250,7 @@ private func main() -> RuntimeExitCode {
             try SwiftIngestRuntimeStateStore.write(state, to: config.stateFile)
 
             do {
-                let processResult = try processPDF(url: item.url, enableOCRFallback: config.enableOCRFallback)
+                let processResult = try processPDF(url: item.url, enableOCRFallback: config.enableOCRFallback, languages: config.languages)
                 pageFailuresDelta += processResult.failedPages.count
                 if let failedPagesEntry = SwiftIngestRuntimeDecisions.failedPagesSummaryEntry(
                     filename: item.url.lastPathComponent,
@@ -478,7 +486,7 @@ private func sha256File(url: URL) throws -> String {
     return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }
 
-private func processPDF(url: URL, enableOCRFallback: Bool) throws -> DocumentProcessResult {
+private func processPDF(url: URL, enableOCRFallback: Bool, languages: [String]) throws -> DocumentProcessResult {
     #if canImport(PDFKit)
     guard let document = PDFDocument(url: url) else {
         throw CLIError("failed to open PDF: \(url.path)")
@@ -499,7 +507,7 @@ private func processPDF(url: URL, enableOCRFallback: Bool) throws -> DocumentPro
 
         worker = OCRWorker(
             extractor: PDFExtractor(),
-            visionRecognizer: VisionOCRRecognizer(),
+            visionRecognizer: VisionOCRRecognizer(recognitionLanguages: languages),
             config: workerConfig
         )
         #else
@@ -526,7 +534,7 @@ private func processPDF(url: URL, enableOCRFallback: Bool) throws -> DocumentPro
             name: url.lastPathComponent,
             textLayerText: page.string,
             metadataOrientation: orientationFromPDFRotation(page.rotation),
-            languageHints: ["ar", "en"],
+            languageHints: languages,
             renderedImage: enableOCRFallback ? render(page: page, dpi: 320) : nil
         )
 

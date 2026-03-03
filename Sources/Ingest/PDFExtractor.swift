@@ -28,7 +28,7 @@ public struct PDFPagePayload {
         name: String,
         textLayerText: String?,
         metadataOrientation: PageOrientation = .up,
-        languageHints: [String] = ["ar", "en"],
+        languageHints: [String] = [],
         renderedImage: CGImage? = nil
     ) {
         self.pageID = pageID
@@ -139,7 +139,7 @@ public final class VisionOCRRecognizer: VisionOCRRecognizing {
     private let allowArabicLanguageCorrection: Bool
 
     public init(
-        recognitionLanguages: [String] = ["ar", "en"],
+        recognitionLanguages: [String] = ["en"],
         renderReferenceDPI: Int = 320,
         languageCorrectionMode: VisionLanguageCorrectionMode = VisionLanguageCorrectionMode.fromEnvironment(),
         allowArabicLanguageCorrection: Bool = (ProcessInfo.processInfo.environment["VISION_LANG_CORRECTION_ALLOW_ARABIC"] == "1")
