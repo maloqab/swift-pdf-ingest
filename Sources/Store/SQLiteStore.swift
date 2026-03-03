@@ -1,9 +1,5 @@
 import Foundation
-#if canImport(Darwin)
-import SQLite3
-#else
 import CSQLite3
-#endif
 import Ingest
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)

@@ -1,12 +1,6 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-#if os(Linux)
-let storeDeps: [Target.Dependency] = ["Ingest", "CSQLite3"]
-#else
-let storeDeps: [Target.Dependency] = ["Ingest"]
-#endif
-
 let package = Package(
     name: "swift-pdf-ingest",
     platforms: [
@@ -35,7 +29,7 @@ let package = Package(
         ),
         .target(
             name: "Store",
-            dependencies: storeDeps,
+            dependencies: ["Ingest", "CSQLite3"],
             path: "Sources/Store"
         ),
         .executableTarget(
