@@ -24,6 +24,7 @@ git clone https://github.com/maloqab/swift-pdf-ingest.git
 cd swift-pdf-ingest
 swift test
 swift build --product pdf-ingest
+swift build --product pdf-ingest-web
 ```
 
 Run ingestion:
@@ -36,6 +37,22 @@ Run ingestion:
   --max-docs 25 \
   --ocr-fallback on
 ```
+
+Run the local upload UI:
+
+```bash
+swift run pdf-ingest-web
+```
+
+Then open [http://127.0.0.1:8080](http://127.0.0.1:8080).
+
+The web app lets you:
+
+- Upload a PDF directly from the browser
+- Store extracted pages in SQLite
+- Inspect clean normalized text
+- View structured JSON per document and per page
+- Browse recently ingested documents
 
 ## Architecture
 
@@ -141,9 +158,10 @@ Safe for incremental execution across large backfills.
 Sources/
   Ingest/                   # Core: protocols, OCR worker, extraction, state
     Protocols/              # EmbeddingGenerating, StorageWriting, TextExtracting
-  IngestRuntime/            # Shared runtime used by executable targets
+  IngestRuntime/            # Shared runtime used by CLI and web server
   Store/                    # SQLiteStore (default StorageWriting impl)
   PDFIngest/                # CLI executable
+  PDFIngestWeb/             # Local web UI + upload API
 Tests/
   IngestTests/
   StoreTests/

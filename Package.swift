@@ -10,11 +10,13 @@ let package = Package(
         .library(name: "Ingest", targets: ["Ingest"]),
         .library(name: "Store", targets: ["Store"]),
         .library(name: "IngestRuntime", targets: ["IngestRuntime"]),
-        .executable(name: "pdf-ingest", targets: ["PDFIngest"])
+        .executable(name: "pdf-ingest", targets: ["PDFIngest"]),
+        .executable(name: "pdf-ingest-web", targets: ["PDFIngestWeb"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-testing.git", from: "0.9.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0" ..< "5.0.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.111.0"),
     ],
     targets: [
         .target(
@@ -42,6 +44,20 @@ let package = Package(
             ],
             path: "Sources/PDFIngest",
             sources: ["main.swift"]
+        ),
+        .executableTarget(
+            name: "PDFIngestWeb",
+            dependencies: [
+                "Ingest",
+                "IngestRuntime",
+                "Store",
+                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "Vapor", package: "vapor"),
+            ],
+            path: "Sources/PDFIngestWeb",
+            resources: [
+                .process("Public")
+            ]
         ),
         .testTarget(
             name: "IngestTests",

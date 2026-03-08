@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF Ingest Studio</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-left"></div>
+    <div class="ambient ambient-right"></div>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">swift-pdf-ingest</p>
+        <h1>Upload a PDF. Get clean structured output.</h1>
+        <p class="lede">
+          Local-first ingestion UI on top of the Swift pipeline. Upload any PDF, run native extraction,
+          and inspect normalized pages, clean text, and structured JSON.
+        </p>
+      </section>
+
+      <section class="layout">
+        <article class="panel upload-panel">
+          <div class="panel-head">
+            <h2>Ingest</h2>
+            <span id="status-pill" class="status-pill idle">Idle</span>
+          </div>
+
+          <form id="upload-form" class="upload-form">
+            <label class="dropzone" for="file-input">
+              <input id="file-input" name="file" type="file" accept="application/pdf,.pdf" required />
+              <span class="drop-kicker">Drop PDF here</span>
+              <strong id="file-name">or choose a file</strong>
+              <small>PDF only. Runs locally on this machine.</small>
+            </label>
+
+            <div class="field-grid">
+              <label>
+                <span>Document title</span>
+                <input id="document-title" name="documentTitle" type="text" placeholder="Optional display title" />
+              </label>
+              <label>
+                <span>Source label</span>
+                <input id="source-label" name="sourceLabel" type="text" placeholder="annual-reports" />
+              </label>
+              <label class="full">
+                <span>Source URL</span>
+                <input id="source-url" name="sourceURL" type="url" placeholder="https://example.com/report.pdf" />
+              </label>
+              <label>
+                <span>OCR languages</span>
+                <input id="languages" name="languages" type="text" value="en" placeholder="en,ar" />
+              </label>
+            </div>
+
+            <button id="submit-button" class="primary-button" type="submit">Upload and ingest</button>
+          </form>
+        </article>
+
+        <aside class="panel recent-panel">
+          <div class="panel-head">
+            <h2>Recent documents</h2>
+            <button id="refresh-button" class="ghost-button" type="button">Refresh</button>
+          </div>
+          <div id="recent-list" class="recent-list"></div>
+        </aside>
+      </section>
+
+      <section id="result-shell" class="result-shell hidden">
+        <article class="panel metrics-panel">
+          <div class="panel-head">
+            <h2>Document summary</h2>
+            <span id="result-status" class="status-pill"></span>
+          </div>
+          <div id="metrics-grid" class="metrics-grid"></div>
+          <div id="result-meta" class="result-meta"></div>
+        </article>
+
+        <section class="result-grid">
+          <article class="panel text-panel">
+            <div class="panel-head">
+              <h2>Clean text</h2>
+              <button id="copy-text-button" class="ghost-button" type="button">Copy</button>
+            </div>
+            <pre id="clean-text" class="text-output"></pre>
+          </article>
+
+          <article class="panel json-panel">
+            <div class="panel-head">
+              <h2>Structured JSON</h2>
+              <button id="copy-json-button" class="ghost-button" type="button">Copy</button>
+            </div>
+            <pre id="json-output" class="json-output"></pre>
+          </article>
+        </section>
+
+        <article class="panel pages-panel">
+          <div class="panel-head">
+            <h2>Per-page extraction</h2>
+            <span id="page-count-label" class="panel-caption"></span>
+          </div>
+          <div id="pages-list" class="pages-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
