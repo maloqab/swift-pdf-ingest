@@ -128,7 +128,7 @@ All fields are optional. Files not in the manifest still get ingested with filen
 
 ## Resume and Dedup
 
-- Each file gets a signature: `sha256 + path`
+- Each file gets a signature: `sha256`
 - Signatures are appended to a seen-file only after successful processing
 - Subsequent runs skip already-processed files automatically
 - Runtime state tracks progress for monitoring and recovery

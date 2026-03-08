@@ -1,19 +1,45 @@
 import Foundation
 
-struct RuntimeConfig {
-    let inboxDir: URL
-    let seenFile: URL
-    let stateFile: URL
-    let dbPath: URL
-    let sourceManifestPath: URL?
-    let embeddingDimension: Int
-    let embeddingModelVersion: String
-    let maxDocumentsPerRun: Int
-    let timeoutSeconds: Int?
-    let enableOCRFallback: Bool
-    let languages: [String]
+public struct RuntimeConfig {
+    public let inboxDir: URL
+    public let seenFile: URL
+    public let stateFile: URL
+    public let dbPath: URL
+    public let sourceManifestPath: URL?
+    public let embeddingDimension: Int
+    public let embeddingModelVersion: String
+    public let maxDocumentsPerRun: Int
+    public let timeoutSeconds: Int?
+    public let enableOCRFallback: Bool
+    public let languages: [String]
 
-    static func parse(arguments: [String]) throws -> RuntimeConfig {
+    public init(
+        inboxDir: URL,
+        seenFile: URL,
+        stateFile: URL,
+        dbPath: URL,
+        sourceManifestPath: URL?,
+        embeddingDimension: Int,
+        embeddingModelVersion: String,
+        maxDocumentsPerRun: Int,
+        timeoutSeconds: Int?,
+        enableOCRFallback: Bool,
+        languages: [String]
+    ) {
+        self.inboxDir = inboxDir
+        self.seenFile = seenFile
+        self.stateFile = stateFile
+        self.dbPath = dbPath
+        self.sourceManifestPath = sourceManifestPath
+        self.embeddingDimension = embeddingDimension
+        self.embeddingModelVersion = embeddingModelVersion
+        self.maxDocumentsPerRun = maxDocumentsPerRun
+        self.timeoutSeconds = timeoutSeconds
+        self.enableOCRFallback = enableOCRFallback
+        self.languages = languages
+    }
+
+    public static func parse(arguments: [String]) throws -> RuntimeConfig {
         var inboxDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("runtime/inbox")
         var seenFile = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -139,16 +165,22 @@ struct RuntimeConfig {
     }
 }
 
-struct CLIError: Error, CustomStringConvertible {
-    let message: String
-    init(_ message: String) { self.message = message }
-    var description: String { message }
+public struct CLIError: Error, CustomStringConvertible {
+    public let message: String
+    public init(_ message: String) { self.message = message }
+    public var description: String { message }
 }
 
-struct SourceManifestEntry: Codable {
-    let sourceURL: String?
-    let sourceLabel: String?
-    let documentTitle: String?
+public struct SourceManifestEntry: Codable {
+    public let sourceURL: String?
+    public let sourceLabel: String?
+    public let documentTitle: String?
+
+    public init(sourceURL: String?, sourceLabel: String?, documentTitle: String?) {
+        self.sourceURL = sourceURL
+        self.sourceLabel = sourceLabel
+        self.documentTitle = documentTitle
+    }
 
     enum CodingKeys: String, CodingKey {
         case sourceURL = "source_url"
@@ -157,7 +189,7 @@ struct SourceManifestEntry: Codable {
     }
 }
 
-enum RuntimeExitCode: Int32 {
+public enum RuntimeExitCode: Int32 {
     case success = 0
     case invalidArguments = 2
     case runtimeFailure = 3

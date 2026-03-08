@@ -11,29 +11,53 @@ import PDFKit
 import AppKit
 #endif
 
-struct PendingPDF {
-    let url: URL
-    let sha256: String
+public struct PendingPDF {
+    public let url: URL
+    public let sha256: String
 
-    var signature: String {
-        "\(sha256) \(url.path)"
+    public init(url: URL, sha256: String) {
+        self.url = url
+        self.sha256 = sha256
+    }
+
+    public var signature: String {
+        sha256
     }
 }
 
-struct ProcessedPage {
-    let pageNumber: Int
-    let result: OCRWorkerResult
+public struct ProcessedPage {
+    public let pageNumber: Int
+    public let result: OCRWorkerResult
+
+    public init(pageNumber: Int, result: OCRWorkerResult) {
+        self.pageNumber = pageNumber
+        self.result = result
+    }
 }
 
-struct DocumentProcessResult {
-    let pageCount: Int
-    let chunkCount: Int
-    let pages: [ProcessedPage]
-    let failedPages: [Int]
-    let sourceUnit: String?
+public struct DocumentProcessResult {
+    public let pageCount: Int
+    public let chunkCount: Int
+    public let pages: [ProcessedPage]
+    public let failedPages: [Int]
+    public let sourceUnit: String?
+
+    public init(
+        pageCount: Int,
+        chunkCount: Int,
+        pages: [ProcessedPage],
+        failedPages: [Int],
+        sourceUnit: String?
+    ) {
+        self.pageCount = pageCount
+        self.chunkCount = chunkCount
+        self.pages = pages
+        self.failedPages = failedPages
+        self.sourceUnit = sourceUnit
+    }
 }
 
-enum DocumentProcessingError: Error {
+public enum DocumentProcessingError: Error {
     case allPagesFailed(fileName: String, failedPages: [Int])
 }
 
@@ -43,10 +67,14 @@ struct RuntimeWriteCounters {
     var embeddingsDelta = 0
 }
 
-struct DeterministicEmbeddingGenerator: EmbeddingGenerating {
-    let dimension: Int
+public struct DeterministicEmbeddingGenerator: EmbeddingGenerating {
+    public let dimension: Int
 
-    func embed(text: String) throws -> [Float] {
+    public init(dimension: Int) {
+        self.dimension = dimension
+    }
+
+    public func embed(text: String) throws -> [Float] {
         var vector = Array(repeating: Float(0), count: max(1, dimension))
         let bytes = Array(text.utf8)
         if bytes.isEmpty {
@@ -72,7 +100,7 @@ struct DeterministicEmbeddingGenerator: EmbeddingGenerating {
     }
 }
 
-func loadSourceManifest(path: URL?) throws -> [String: SourceManifestEntry] {
+public func loadSourceManifest(path: URL?) throws -> [String: SourceManifestEntry] {
     guard let path else { return [:] }
     guard FileManager.default.fileExists(atPath: path.path) else {
         throw CLIError("source manifest not found at \(path.path)")
@@ -83,7 +111,7 @@ func loadSourceManifest(path: URL?) throws -> [String: SourceManifestEntry] {
     return try decoder.decode([String: SourceManifestEntry].self, from: data)
 }
 
-func discoverPDFs(in inboxDir: URL) throws -> [PendingPDF] {
+public func discoverPDFs(in inboxDir: URL) throws -> [PendingPDF] {
     let urls = try FileManager.default.contentsOfDirectory(
         at: inboxDir,
         includingPropertiesForKeys: [.isRegularFileKey],
@@ -97,7 +125,23 @@ func discoverPDFs(in inboxDir: URL) throws -> [PendingPDF] {
         }
 }
 
-func loadSeenSignatures(from seenFile: URL) throws -> Set<String> {
+public func buildPendingQueue(candidates: [PendingPDF], seenSignatures: Set<String>) -> [PendingPDF] {
+    var pending: [PendingPDF] = []
+    var queuedSignatures = seenSignatures
+
+    for candidate in candidates where !queuedSignatures.contains(candidate.signature) {
+        pending.append(candidate)
+        queuedSignatures.insert(candidate.signature)
+    }
+
+    return pending
+}
+
+public func didProcessDocumentCompletely(_ result: DocumentProcessResult) -> Bool {
+    result.failedPages.isEmpty
+}
+
+public func loadSeenSignatures(from seenFile: URL) throws -> Set<String> {
     guard FileManager.default.fileExists(atPath: seenFile.path) else {
         return []
     }
@@ -106,7 +150,7 @@ func loadSeenSignatures(from seenFile: URL) throws -> Set<String> {
     return Set(lines)
 }
 
-func appendSeenSignature(_ signature: String, to seenFile: URL) throws {
+public func appendSeenSignature(_ signature: String, to seenFile: URL) throws {
     let parent = seenFile.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
 
@@ -123,12 +167,12 @@ func appendSeenSignature(_ signature: String, to seenFile: URL) throws {
     }
 }
 
-func sha256File(url: URL) throws -> String {
+public func sha256File(url: URL) throws -> String {
     let data = try Data(contentsOf: url)
     return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }
 
-func processPDF(url: URL, enableOCRFallback: Bool, languages: [String]) throws -> DocumentProcessResult {
+public func processPDF(url: URL, enableOCRFallback: Bool, languages: [String]) throws -> DocumentProcessResult {
     #if canImport(PDFKit)
     guard let document = PDFDocument(url: url) else {
         throw CLIError("failed to open PDF: \(url.path)")
@@ -138,6 +182,7 @@ func processPDF(url: URL, enableOCRFallback: Bool, languages: [String]) throws -
     }
 
     let worker: OCRWorker?
+    let ocrRenderDPIValue: Int?
     if enableOCRFallback {
         #if canImport(Vision)
         var workerConfig = OCRWorkerConfig()
@@ -146,17 +191,23 @@ func processPDF(url: URL, enableOCRFallback: Bool, languages: [String]) throws -
         workerConfig.minLanguageSanity = 0.40
         workerConfig.minQualityScore = 0.45
         workerConfig.sweepTriggerQuality = 0.60
+        let renderDPI = ocrRenderDPI(for: workerConfig)
 
         worker = OCRWorker(
             extractor: PDFExtractor(),
-            visionRecognizer: VisionOCRRecognizer(recognitionLanguages: languages),
+            visionRecognizer: VisionOCRRecognizer(
+                recognitionLanguages: languages,
+                renderReferenceDPI: renderDPI
+            ),
             config: workerConfig
         )
+        ocrRenderDPIValue = renderDPI
         #else
         throw CLIError("--ocr-fallback requires Vision support on this platform")
         #endif
     } else {
         worker = nil
+        ocrRenderDPIValue = nil
     }
 
     var pagesProcessed = 0
@@ -177,7 +228,7 @@ func processPDF(url: URL, enableOCRFallback: Bool, languages: [String]) throws -
             textLayerText: page.string,
             metadataOrientation: orientationFromPDFRotation(page.rotation),
             languageHints: languages,
-            renderedImage: enableOCRFallback ? render(page: page, dpi: 320) : nil
+            renderedImage: ocrRenderDPIValue.map { render(page: page, dpi: $0) } ?? nil
         )
 
         do {
@@ -214,7 +265,11 @@ func processPDF(url: URL, enableOCRFallback: Bool, languages: [String]) throws -
     #endif
 }
 
-func processTextLayerOnly(page: PDFPagePayload) throws -> OCRWorkerResult {
+public func ocrRenderDPI(for config: OCRWorkerConfig = OCRWorkerConfig()) -> Int {
+    max(config.baseDPI, config.highDPI, config.maxTargetedNumericRetryDPI)
+}
+
+public func processTextLayerOnly(page: PDFPagePayload) throws -> OCRWorkerResult {
     guard let candidate = PDFExtractor().extractTextLayer(from: page) else {
         throw CLIError("missing text layer for page \(page.pageNumber)")
     }
@@ -243,7 +298,7 @@ func processTextLayerOnly(page: PDFPagePayload) throws -> OCRWorkerResult {
     )
 }
 
-func computeChunkCount(for text: String, chunkSize: Int = 1200) -> Int {
+public func computeChunkCount(for text: String, chunkSize: Int = 1200) -> Int {
     let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !normalized.isEmpty else { return 0 }
 
@@ -262,7 +317,7 @@ func computeChunkCount(for text: String, chunkSize: Int = 1200) -> Int {
     return chunks
 }
 
-func normalizeText(_ text: String) -> String {
+public func normalizeText(_ text: String) -> String {
     let collapsed = text
         .replacingOccurrences(of: "\r", with: "\n")
         .split(separator: "\n")
@@ -272,7 +327,7 @@ func normalizeText(_ text: String) -> String {
     return collapsed
 }
 
-func numericSanityStatus(for result: OCRWorkerResult) -> String {
+public func numericSanityStatus(for result: OCRWorkerResult) -> String {
     if !result.numericReasonCodes.isEmpty {
         return "suspicious"
     }
@@ -283,7 +338,7 @@ func numericSanityStatus(for result: OCRWorkerResult) -> String {
 }
 
 #if canImport(PDFKit) && canImport(AppKit)
-func orientationFromPDFRotation(_ rotation: Int) -> PageOrientation {
+public func orientationFromPDFRotation(_ rotation: Int) -> PageOrientation {
     switch ((rotation % 360) + 360) % 360 {
     case 90: return .right
     case 180: return .down
@@ -292,7 +347,7 @@ func orientationFromPDFRotation(_ rotation: Int) -> PageOrientation {
     }
 }
 
-func render(page: PDFPage, dpi: Int) -> CGImage? {
+public func render(page: PDFPage, dpi: Int) -> CGImage? {
     let bounds = page.bounds(for: .mediaBox)
     let scale = CGFloat(dpi) / 72.0
     let width = max(Int(bounds.width * scale), 1)
@@ -324,8 +379,8 @@ func render(page: PDFPage, dpi: Int) -> CGImage? {
 }
 #endif
 
-enum PipelineRunner {
-    static func run(config: RuntimeConfig) -> RuntimeExitCode {
+public enum PipelineRunner {
+    public static func run(config: RuntimeConfig) -> RuntimeExitCode {
         do {
             try FileManager.default.createDirectory(at: config.inboxDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(at: config.stateFile.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -351,7 +406,7 @@ enum PipelineRunner {
             var failedPagesByDocument: [String] = []
             let startedAt = Date()
 
-            let pending = candidates.filter { !seenSignatures.contains($0.signature) }
+            let pending = buildPendingQueue(candidates: candidates, seenSignatures: seenSignatures)
             for item in pending.prefix(config.maxDocumentsPerRun) {
                 if let timeoutSeconds = config.timeoutSeconds,
                    Date().timeIntervalSince(startedAt) >= TimeInterval(timeoutSeconds) {
@@ -378,13 +433,6 @@ enum PipelineRunner {
 
                 do {
                     let processResult = try processPDF(url: item.url, enableOCRFallback: config.enableOCRFallback, languages: config.languages)
-                    pageFailuresDelta += processResult.failedPages.count
-                    if let failedPagesEntry = IngestDecisions.failedPagesSummaryEntry(
-                        filename: item.url.lastPathComponent,
-                        failedPages: processResult.failedPages
-                    ) {
-                        failedPagesByDocument.append(failedPagesEntry)
-                    }
 
                     let sourceEntry = sourceManifest[item.url.lastPathComponent]
                     let sourceLabel = sourceEntry?.sourceLabel
@@ -438,25 +486,54 @@ enum PipelineRunner {
                         writes.embeddingsDelta += 1
                     }
 
-                    processedDelta += 1
-                    chunksDelta += processResult.chunkCount
-                    current = IngestCurrentItem(
-                        filePath: item.url.path,
-                        fileSHA256: item.sha256,
-                        status: "processed",
-                        startedAt: current.startedAt,
-                        finishedAt: IngestStateStore.timestampNowUTC(),
-                        pageCount: processResult.pageCount,
-                        chunkCount: processResult.chunkCount,
-                        errorMessage: nil
-                    )
-                    state = IngestState(
-                        generatedAt: IngestStateStore.timestampNowUTC(),
-                        processedCount: state.processedCount + 1,
-                        failedCount: state.failedCount,
-                        chunkCount: state.chunkCount + processResult.chunkCount,
-                        currentItem: current
-                    )
+                    if didProcessDocumentCompletely(processResult) {
+                        processedDelta += 1
+                        chunksDelta += processResult.chunkCount
+                        current = IngestCurrentItem(
+                            filePath: item.url.path,
+                            fileSHA256: item.sha256,
+                            status: "processed",
+                            startedAt: current.startedAt,
+                            finishedAt: IngestStateStore.timestampNowUTC(),
+                            pageCount: processResult.pageCount,
+                            chunkCount: processResult.chunkCount,
+                            errorMessage: nil
+                        )
+                        state = IngestState(
+                            generatedAt: IngestStateStore.timestampNowUTC(),
+                            processedCount: state.processedCount + 1,
+                            failedCount: state.failedCount,
+                            chunkCount: state.chunkCount + processResult.chunkCount,
+                            currentItem: current
+                        )
+                    } else {
+                        failedDelta += 1
+                        pageFailuresDelta += processResult.failedPages.count
+                        if let failedPagesEntry = IngestDecisions.failedPagesSummaryEntry(
+                            filename: item.url.lastPathComponent,
+                            failedPages: processResult.failedPages
+                        ) {
+                            failedPagesByDocument.append(failedPagesEntry)
+                        }
+
+                        current = IngestCurrentItem(
+                            filePath: item.url.path,
+                            fileSHA256: item.sha256,
+                            status: "failed",
+                            startedAt: current.startedAt,
+                            finishedAt: IngestStateStore.timestampNowUTC(),
+                            pageCount: processResult.pageCount,
+                            chunkCount: processResult.chunkCount,
+                            errorMessage: "partial_page_failures failed_pages=\(processResult.failedPages.count)"
+                        )
+                        state = IngestState(
+                            generatedAt: IngestStateStore.timestampNowUTC(),
+                            processedCount: state.processedCount,
+                            failedCount: state.failedCount + 1,
+                            chunkCount: state.chunkCount,
+                            currentItem: current
+                        )
+                    }
                 } catch {
                     failedDelta += 1
 

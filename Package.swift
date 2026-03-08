@@ -50,6 +50,15 @@ let package = Package(
                 .product(name: "Testing", package: "swift-testing")
             ],
             path: "Tests/StoreTests"
+        ),
+        .testTarget(
+            name: "PDFIngestTests",
+            dependencies: [
+                "PDFIngest",
+                "Ingest",
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Tests/PDFIngestTests"
         )
     ]
 )
