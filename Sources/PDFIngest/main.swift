@@ -1,6 +1,5 @@
 import Foundation
-import Ingest
-import Store
+import IngestRuntime
 
 do {
     let config = try RuntimeConfig.parse(arguments: Array(CommandLine.arguments.dropFirst()))

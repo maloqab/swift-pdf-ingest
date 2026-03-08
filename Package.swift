@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .library(name: "Ingest", targets: ["Ingest"]),
         .library(name: "Store", targets: ["Store"]),
+        .library(name: "IngestRuntime", targets: ["IngestRuntime"]),
         .executable(name: "pdf-ingest", targets: ["PDFIngest"])
     ],
     dependencies: [
@@ -25,14 +26,22 @@ let package = Package(
             dependencies: ["Ingest"],
             path: "Sources/Store"
         ),
-        .executableTarget(
-            name: "PDFIngest",
+        .target(
+            name: "IngestRuntime",
             dependencies: [
                 "Ingest",
                 "Store",
                 .product(name: "Crypto", package: "swift-crypto"),
             ],
-            path: "Sources/PDFIngest"
+            path: "Sources/IngestRuntime"
+        ),
+        .executableTarget(
+            name: "PDFIngest",
+            dependencies: [
+                "IngestRuntime",
+            ],
+            path: "Sources/PDFIngest",
+            sources: ["main.swift"]
         ),
         .testTarget(
             name: "IngestTests",
@@ -54,7 +63,7 @@ let package = Package(
         .testTarget(
             name: "PDFIngestTests",
             dependencies: [
-                "PDFIngest",
+                "IngestRuntime",
                 "Ingest",
                 .product(name: "Testing", package: "swift-testing")
             ],

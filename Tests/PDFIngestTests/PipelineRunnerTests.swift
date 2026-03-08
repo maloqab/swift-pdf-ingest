@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 @testable import Ingest
-@testable import PDFIngest
+@testable import IngestRuntime
 
 @Suite("PipelineRunner")
 struct PipelineRunnerTests {

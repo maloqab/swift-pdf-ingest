@@ -141,11 +141,13 @@ Safe for incremental execution across large backfills.
 Sources/
   Ingest/                   # Core: protocols, OCR worker, extraction, state
     Protocols/              # EmbeddingGenerating, StorageWriting, TextExtracting
+  IngestRuntime/            # Shared runtime used by executable targets
   Store/                    # SQLiteStore (default StorageWriting impl)
   PDFIngest/                # CLI executable
 Tests/
   IngestTests/
   StoreTests/
+  PDFIngestTests/
 examples/
   FinancialArabicPlugin/    # Example domain plugin (KWD currency, Arabic numerals)
   source_manifest.json
